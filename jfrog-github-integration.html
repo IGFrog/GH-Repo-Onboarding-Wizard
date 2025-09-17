@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JFrog Platform - GitHub Integration</title>
+    <script src="https://cdn-tailwindcss.vercel.app/"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+        .jfrog-header {
+            background-color: #ffffff;
+            border-bottom: 1px solid #d9dfee;
+        }
+        .jfrog-sidebar {
+            background-color: #2c3e50;
+            color: #bdc3c7;
+        }
+        .jfrog-sidebar a.active {
+            background-color: #3498db;
+            color: white;
+        }
+         .jfrog-sidebar a:hover {
+            background-color: #34495e;
+        }
+        .wizard-step {
+            display: none;
+        }
+        .wizard-step.active {
+            display: block;
+        }
+        .btn-primary {
+            background-color: #00796b; /* JFrog primary green */
+            color: white;
+            transition: background-color 0.3s;
+        }
+        .btn-primary:hover {
+            background-color: #004d40;
+        }
+        .btn-primary:disabled {
+            background-color: #b2dfdb;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background-color: #ffffff; 
+            color: #374151;
+            border: 1px solid #d1d5db;
+            transition: background-color 0.3s;
+        }
+        .btn-secondary:hover {
+            background-color: #f9fafb;
+        }
+        .radio-label input:checked + .radio-tile-compact {
+            background-color: white;
+            color: #374151;
+            font-weight: 500;
+            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        }
+        .radio-tile-compact {
+            color: #6b7280;
+        }
+        .tab-button.active {
+            border-bottom-color: #00796b;
+            color: #00796b;
+            font-weight: 600;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #00796b;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #00796b;
+        }
+        .modal { display: none; }
+        .jfrog-card {
+            background-color: white;
+            border: 1px solid #d9dfee;
+            border-radius: 8px;
+        }
+        .progress-segment {
+             background-color: #e0e0e0;
+        }
+        .progress-segment.active {
+            background-color: #00796b;
+        }
+        /* Drag and Drop & Selection Styles */
+        tr[draggable="true"], .stage-tag[draggable="true"] {
+            cursor: grab;
+        }
+        tr.selected-row {
+            background-color: #f0fdfa;
+        }
+        tr.selected-row:hover {
+            background-color: #e6fcf5;
+        }
+        tr.dragging, .stage-tag.dragging {
+            opacity: 0.5;
+        }
+        tbody.drop-target {
+            background-color: #f0f7ff;
+            outline: 2px dashed #00796b;
+            outline-offset: -2px;
+        }
+        .stage-tag-container.drop-target {
+             background-color: #f0f7ff;
+        }
+        .repo-card {
+            transition: all 0.2s ease;
+        }
+        .repo-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .repo-card.selected {
+            border-color: #00796b;
+            box-shadow: 0 0 0 2px rgba(0, 121, 107, 0.1);
+        }
+        .repo-card-label {
+            transition: color 0.2s ease;
+        }
+        .repo-card.selected .repo-card-label {
+            color: #00796b;
+        }
+        .radio-label {
+            position: relative;
+        }
+        .radio-label input[type="checkbox"]:checked + .radio-tile-compact {
+            background-color: #00796b;
+            color: white;
+        }
+        .radio-tile-compact {
+            transition: all 0.2s ease;
+        }
+        .radio-tile-compact:hover {
+            background-color: #e0f2f1;
+        }
+    </style>
+</head>
+<body class="flex h-screen">
+
+    <!-- Sidebar -->
+    <aside class="w-64 jfrog-sidebar flex-shrink-0">
+        <div class="p-4 text-white text-lg font-semibold">JFrog Platform</div>
+        <nav class="mt-4 text-sm">
+            <a href="#" class="block py-2.5 px-4">All Projects Overview</a>
+            <a href="#" class="block py-2.5 px-4">Environments</a>
+            <a href="#" class="block py-2.5 px-4">Repositories</a>
+            <a href="#" class="block py-2.5 px-4">User Management</a>
+            <a href="#" class="block py-2.5 px-4">Authentication</a>
+            <a href="#" class="block py-2.5 px-4">Security</a>
+            <div class="px-4 mt-2">
+                <div class="text-xs uppercase text-slate-400 font-semibold">General Management</div>
+                <a href="#" class="block py-2.5 px-4 -mx-4">Settings</a>
+                <a href="#" class="block py-2.5 px-4 -mx-4">Webhooks</a>
+                <a href="#" class="block py-2.5 px-4 -mx-4 active">Manage Integrations</a>
+                <a href="#" class="block py-2.5 px-4 -mx-4">License Buckets</a>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+        <header class="jfrog-header p-4 flex justify-between items-center flex-shrink-0">
+             <div>
+                <span class="text-slate-500">Platform /</span>
+                <span class="font-semibold text-slate-800">Administration</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <input type="search" placeholder="Search Admin Resources" class="px-4 py-1.5 border border-slate-300 rounded-md text-sm">
+                <button class="bg-yellow-400 text-slate-800 font-semibold px-4 py-1.5 rounded-md text-sm">Ask AI</button>
+            </div>
+        </header>
+        
+        <main class="flex-1 p-6 overflow-y-auto">
+            <h1 class="text-2xl font-semibold text-slate-800 mb-4">GitHub Integration</h1>
+            <p class="text-slate-600 mb-6">Connect your GitHub repositories to JFrog Platform for seamless artifact management.</p>
+            
+            <!-- Repository Status Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="repo-card selected bg-white rounded-lg border border-slate-200 p-4 cursor-pointer hover:shadow-md transition-shadow" onclick="selectRepoFilter('all')">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="repo-card-label font-semibold text-slate-800">All GH Repositories</h3>
+                            <p class="text-2xl font-bold text-slate-900 mt-1" id="all-repos-count">20</p>
+                        </div>
+                        <div class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+                            <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="repo-card bg-white rounded-lg border border-slate-200 p-4 cursor-pointer hover:shadow-md transition-shadow" onclick="selectRepoFilter('integrated')">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="repo-card-label font-semibold text-slate-800">Integrated Repositories</h3>
+                            <p class="text-2xl font-bold text-green-600 mt-1" id="integrated-repos-count">0</p>
+                        </div>
+                        <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                            <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="repo-card bg-white rounded-lg border border-slate-200 p-4 cursor-pointer hover:shadow-md transition-shadow" onclick="selectRepoFilter('not-integrated')">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="repo-card-label font-semibold text-slate-800">Not Integrated Repositories</h3>
+                            <p class="text-2xl font-bold text-orange-600 mt-1" id="not-integrated-repos-count">20</p>
+                        </div>
+                        <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                            <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg border border-slate-200">
+                <div class="p-4 border-b border-slate-200">
+                    <nav class="flex gap-x-6">
+                        <a href="#" class="text-sm font-semibold text-blue-600 border-b-2 border-blue-600 pb-2">GitHub</a>
+                    </nav>
+                </div>
+                <div class="p-6">
+                    <!-- Initial Repository View -->
+                    <div id="initial-repo-view">
+                        <div id="grouping-options" class="mb-6" style="display: none;">
+                            <div class="flex items-center gap-4">
+                                <h3 class="text-sm font-semibold text-slate-700 flex-shrink-0">Group repositories by:</h3>
+                                <div class="flex gap-1 bg-slate-200 p-1 rounded-lg">
+                                    <label class="radio-label"><input type="checkbox" name="grouping" value="teams" class="sr-only" onchange="updateGroupingStrategy()"><div class="radio-tile-compact cursor-pointer px-4 py-1 rounded-md text-sm">Teams</div></label>
+                                    <label class="radio-label"><input type="checkbox" name="grouping" value="stages" class="sr-only" onchange="updateGroupingStrategy()"><div class="radio-tile-compact cursor-pointer px-4 py-1 rounded-md text-sm">Stages</div></label>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="repo-selection-container" class="space-y-6 max-h-[40vh] overflow-y-auto pr-2"></div>
+                    </div>
+                    
+                    <!-- Wizard View -->
+                    <div id="wizard-view" class="hidden">
+                        <div class="w-full">
+                            <div id="wizard-container">
+                            <!-- Progress Indicator -->
+                            <div class="mb-4">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h2 class="text-base font-semibold text-gray-800">GitHub Integration Setup</h2>
+                                    <span class="text-xs text-gray-500">Step 1 of 5</span>
+                                </div>
+                                <div class="flex items-center justify-center space-x-2">
+                                    <div class="flex items-center space-x-1">
+                                        <div class="progress-dot w-2 h-2 bg-green-500 rounded-full"></div>
+                                        <div class="progress-dot w-2 h-2 bg-gray-300 rounded-full"></div>
+                                        <div class="progress-dot w-2 h-2 bg-gray-300 rounded-full"></div>
+                                        <div class="progress-dot w-2 h-2 bg-gray-300 rounded-full"></div>
+                                        <div class="progress-dot w-2 h-2 bg-gray-300 rounded-full"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Step 1: Stages -->
+                            <div id="step-Stages" class="wizard-step active">
+                                <h1 class="text-lg font-semibold text-slate-800 mb-3">Configure Stages</h1>
+                                <div id="stages-view" class="space-y-3"></div>
+                            </div>
+
+                            <!-- Step 2: Technologies -->
+                            <div id="step-Technologies" class="wizard-step">
+                                <h1 class="text-lg font-semibold text-slate-800 mb-3">Review Package Managers</h1>
+                                <div id="technologies-view" class="space-y-3"></div>
+                            </div>
+
+                            <!-- Step 3: JF Projects -->
+                            <div id="step-JF Projects" class="wizard-step">
+                                <h1 class="text-lg font-semibold text-slate-800 mb-3">JF Projects</h1>
+                                <div id="jf-projects-view" class="space-y-3"></div>
+                            </div>
+
+                            <!-- Step 4: Workflows Integration -->
+                            <div id="step-Workflows Integration" class="wizard-step">
+                                <h1 class="text-lg font-semibold text-slate-800 mb-3">Workflows Integration</h1>
+                                <div id="workflows-view" class="space-y-3"></div>
+                            </div>
+
+                            <!-- Step 5: Complete -->
+                            <div id="step-Complete" class="wizard-step">
+                                <div class="text-center py-6">
+                                    <svg class="mx-auto h-12 w-12 text-green-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <h2 class="text-lg font-bold text-slate-800 mt-3">Configuration Complete!</h2>
+                                    <p class="text-slate-500 mt-2 mb-6">Your onboarding setup is ready.</p>
+                                    <div class="flex flex-wrap justify-center gap-3">
+                                        <button onclick="applyConfiguration()" class="btn-primary px-4 py-2 rounded-md font-semibold text-sm">Apply Configuration</button>
+                                        <button class="btn-secondary px-4 py-2 rounded-md text-sm font-semibold">Export to Terraform</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Navigation -->
+                            <div id="navigation-buttons" class="mt-4 pt-4 border-t border-slate-200 flex justify-between">
+                                <button id="back-btn" onclick="goBack()" class="btn-secondary px-4 py-1.5 rounded-md font-semibold text-sm" style="display: none;">Back</button>
+                                <button id="next-btn" onclick="goNext()" class="btn-primary px-4 py-1.5 rounded-md font-semibold text-sm ml-auto">Next</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Workflow Preview Modal -->
+    <div id="workflow-preview-modal" class="modal fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div onclick="hideWorkflowPreview()" class="fixed inset-0 bg-slate-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                 <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start"><div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10"><svg class="h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg></div><div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full"><h3 class="text-lg leading-6 font-medium text-slate-900" id="modal-title">Preview: Add JFrog Setup</h3><div class="mt-2"><p class="text-sm text-slate-500">The following step will be added to your selected workflow file:</p><div class="mt-3 bg-slate-800 text-white rounded-md p-4 font-mono text-sm overflow-x-auto"><pre><code id="workflow-code-preview"></code></pre></div></div></div></div></div><div class="bg-slate-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse"><button type="button" onclick="hideWorkflowPreview()" class="mt-3 w-full inline-flex justify-center rounded-md border border-slate-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Close</button></div>
+            </div>
+        </div>
+    </div>
+
+
+<script>
+    // --- Data Simulation ---
+    const teamNames = ['Team Phoenix', 'Team Nebula', 'Team Apex', 'Team Orion', 'Team Citadel'];
+    const repoNames = [
+        'monolith-service', 'design-system-v2', 'data-pipeline-etl', 'mobile-app-ios', 'web-analytics-dashboard',
+        'infra-terraform-modules', 'ml-model-training', 'api-gateway', 'customer-support-portal', 'auth-service',
+        'billing-engine', 'notification-service', 'product-catalog-api', 'checkout-flow-ui', 'search-service-es',
+        'video-processing-worker', 'documentation-site', 'internal-tool-admin', 'data-warehouse-scripts', 'security-scanner'
+    ];
+    const allStages = ['dev', 'qa', 'staging', 'performance', 'production', 'release', 'beta'];
+    const allTechnologies = ['Npm', 'Docker', 'Maven', 'PyPI', 'Generic', 'Helm', 'Go', 'Nuget', 'RubyGems', 'Conan', 'Cran', 'Gradle'];
+    
+    const getRandomSubarray = (arr, count) => arr.sort(() => 0.5 - Math.random()).slice(0, count);
+
+    // --- Repository Status Management ---
+    function selectRepoFilter(filter) {
+        // Remove selected class from all cards
+        document.querySelectorAll('.repo-card').forEach(card => card.classList.remove('selected'));
+        // Add selected class to clicked card
+        event.target.closest('.repo-card').classList.add('selected');
+        
+        wizardState.currentRepoFilter = filter;
+        
+        // Show/hide grouping options
+        const groupingOptions = document.getElementById('grouping-options');
+        if (filter === 'not-integrated') {
+            groupingOptions.style.display = 'block';
+        } else {
+            groupingOptions.style.display = 'none';
+        }
+        
+        populateRepoSelection();
+    }
+
+    function updateRepoCounts() {
+        const allRepos = Object.keys(discoveredRepos).length;
+        const integratedRepos = getIntegratedRepos().length;
+        const notIntegratedRepos = allRepos - integratedRepos;
+        
+        document.getElementById('all-repos-count').textContent = allRepos;
+        document.getElementById('integrated-repos-count').textContent = integratedRepos;
+        document.getElementById('not-integrated-repos-count').textContent = notIntegratedRepos;
+    }
+
+    function getIntegratedRepos() {
+        return Array.from(wizardState.integratedRepositories || []);
+    }
+
+    function getFilteredRepos() {
+        const allRepos = Object.entries(discoveredRepos);
+        if (wizardState.currentRepoFilter === 'all') {
+            return allRepos;
+        } else if (wizardState.currentRepoFilter === 'integrated') {
+            return allRepos.filter(([repoName]) => wizardState.integratedRepositories.has(repoName));
+        } else if (wizardState.currentRepoFilter === 'not-integrated') {
+            return allRepos.filter(([repoName]) => !wizardState.integratedRepositories.has(repoName));
+        }
+        return allRepos;
+    }
+
+    const discoveredRepos = repoNames.reduce((acc, repoName) => {
+        const numTeams = Math.floor(Math.random() * 3) + 1;
+        const owners = getRandomSubarray([...teamNames], numTeams);
+        const numStages = Math.floor(Math.random() * 4);
+        const stages = getRandomSubarray([...allStages], numStages);
+        const numTechs = Math.floor(Math.random() * 3) + 1;
+        const technologies = getRandomSubarray([...allTechnologies.slice(0,6)], numTechs);
+
+        acc[repoName] = { owners, stages, workflows: ['main.yml'], data: technologies.map(tech => ({ package: `${repoName}-${tech.toLowerCase()}`, type: tech })) };
+        return acc;
+    }, {});
+    
+    let selectedRepos = [];
+    let wizardState = { 
+        groupingStrategy: null, 
+        projects: {}, 
+        finalStages: {}, 
+        finalTechnologies: [],
+        sharing: {}, 
+        workflows: {},
+        integratedRepositories: new Set(),
+        currentRepoFilter: 'all'
+    };
+
+    let currentStepIndex = 0;
+    const stepsOrder = ['Stages', 'Technologies', 'JF Projects', 'Workflows Integration', 'Complete'];
+    
+    const icons = {
+        PyPI: `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-yellow-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.42 6.58a1 1 0 011.12 0l2.5 2.5a1 1 0 010 1.42l-2.5 2.5a1 1 0 01-1.42-1.42L11.59 10 9.7 8.11a1 1 0 010-1.42l-.28-.28zM5.58 6.58a1 1 0 011.42 0L10 9.59l-1.89 1.89a1 1 0 01-1.42-1.42l2.5-2.5a1 1 0 010-1.42l-.28-.28a1 1 0 010-1.42z" clip-rule="evenodd" /></svg>`,
+        Docker: `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.789 0l-7 14a1 1 0 001.169 1.409l5-1.428a1 1 0 00.475 0l5 1.428a1 1 0 001.17-1.408l-7-14z"/></svg>`,
+        Maven: `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2H5zm0 2h10v7h-2l-1 2H8l-1-2H5V5z" clip-rule="evenodd" /></svg>`,
+        Npm: `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm3.5 4a1.5 1.5 0 013 0V11a1.5 1.5 0 01-3 0V6z" clip-rule="evenodd" /></svg>`,
+        Generic: `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-500" viewBox="0 0 20 20" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" /></svg>`,
+        Go: `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-cyan-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zM2 10a8 8 0 1116 0 8 8 0 01-16 0z" clip-rule="evenodd" /><path d="M10.293 6.293a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 8.414V13a1 1 0 11-2 0V8.414L6.707 10.707a1 1 0 01-1.414-1.414l3-3z" /></svg>`,
+        Nuget: `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-purple-500" viewBox="0 0 20 20" fill="currentColor"><path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 2.5 13.5 2.5 15.5a2.5 2.5 0 105 0c0-1.99-1.24-3.653-2.92-4.43l.892-.893 5.432 1.358a.997.997 0 00.042.01L17 12.18V17a1 1 0 102 0V3a1 1 0 00-2 0v1.22l-1.222.305a.997.997 0 00-.042.01L12.08 5.89l-.893-.892C12.154 3.74 13.5 2.5 15.5 2.5a2.5 2.5 0 100-5c-1.99 0-3.653 1.24-4.43 2.92l-.893.892L4.712 1.358a.997.997 0 00-.01-.042L4.4 1H3z" /></svg>`,
+        Helm: `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-500" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a.75.75 0 01.75.75v3.438a.75.75 0 01-.322.628l-2.678 1.859a.75.75 0 000 1.256l2.678 1.859a.75.75 0 01.322.628v3.438a.75.75 0 01-1.5 0v-2.56l-1.632-1.134a.75.75 0 010-1.256L8.5 7.188V4.625a.75.75 0 010-1.5H6.25a.75.75 0 000 1.5h.5v2.875L4.822 9.375a.75.75 0 000 1.25l1.928 1.339V15.5a.75.75 0 001.5 0v-2.875l1.928-1.339a.75.75 0 000-1.25L7.75 8.661V4.625a.75.75 0 00-1.5 0V3.5a.75.75 0 01.75-.75h2.5z" /></svg>`
+    };
+
+    // --- Core Application Logic ---
+    function initializeWizard() { 
+        updateGroupingStrategy(); 
+        updateNavigationButtons(); 
+        updateRepoCounts();
+        populateRepoSelection();
+    }
+    function updateGroupingStrategy() {
+        const checkedBoxes = Array.from(document.querySelectorAll('input[name="grouping"]:checked'));
+        
+        if (checkedBoxes.length === 0) {
+            wizardState.groupingStrategy = null;
+        } else if (checkedBoxes.length === 1) {
+            wizardState.groupingStrategy = checkedBoxes[0].value;
+        } else {
+            wizardState.groupingStrategy = 'teams_and_stages';
+        }
+        
+        const prev = selectedRepos;
+        populateRepoSelection();
+        reapplySelections(prev);
+        updateSelectedRepos();
+    }
+
+    function startWizardForProject(groupName) {
+        // Get all repositories that belong to this group
+        const groupRepos = Object.entries(discoveredRepos)
+            .filter(([repoName, repoDetails]) => {
+                if (wizardState.groupingStrategy === 'teams') {
+                    const groupKey = (repoDetails.owners || []).sort().join(', ') || 'No Team Assigned';
+                    return groupKey === groupName;
+                } else if (wizardState.groupingStrategy === 'stages') {
+                    const groupKey = (repoDetails.stages || []).sort().join(', ') || 'No Stage Assigned';
+                    return groupKey === groupName;
+                } else if (wizardState.groupingStrategy === 'teams_and_stages') {
+                    const owners = (repoDetails.owners || []).sort().join(', ') || 'No Team';
+                    const stages = (repoDetails.stages || []).sort().join(', ') || 'No Stage';
+                    const groupKey = `${owners} | ${stages}`;
+                    return groupKey === groupName;
+                } else {
+                    return true; // For "All discovered repositories"
+                }
+            })
+            .map(([repoName]) => repoName);
+        
+        // When starting wizard for a project, use ALL repositories from that group
+        // This ensures the wizard starts with all repositories in the group, not just selected ones
+        selectedRepos = [...groupRepos];
+        
+        // Store the group-specific repositories for this project
+        wizardState.currentGroupSelectedRepos = groupRepos;
+        
+        wizardState.currentProjectGroup = groupName;
+        document.getElementById('initial-repo-view').style.display = 'none';
+        document.getElementById('wizard-view').classList.remove('hidden');
+        currentStepIndex = 0;
+        document.querySelectorAll('.wizard-step').forEach(step => step.classList.remove('active'));
+        document.getElementById('step-Stages').classList.add('active');
+        updateNavigationButtons();
+        updateProgressDots();
+        populateStagesView();
+    }
+
+    function applyConfiguration() {
+        if (wizardState.currentProjectGroup) {
+            const projectName = document.querySelector(`input[data-group-key="${wizardState.currentProjectGroup}"]`)?.value || generateProjectName(wizardState.currentProjectGroup);
+            selectedRepos.forEach(repoName => {
+                wizardState.integratedRepositories.add(repoName);
+            });
+            if (!wizardState.projects) wizardState.projects = {};
+            wizardState.projects[wizardState.currentProjectGroup] = { name: projectName, repos: selectedRepos };
+        }
+        
+        document.getElementById('wizard-view').classList.add('hidden');
+        document.getElementById('initial-repo-view').style.display = 'block';
+        wizardState.currentProjectGroup = null;
+        wizardState.groupingStrategy = null;
+        selectedRepos = [];
+        document.querySelectorAll('input[name="grouping"]').forEach(cb => cb.checked = false);
+        populateRepoSelection();
+        updateRepoCounts();
+        alert('Configuration applied successfully!');
+    }
+    function generateProjectName(groupName) { return `Project-${groupName.replace(/[^a-zA-Z0-9-]/g, '').replace(/, /g, '-')}`.slice(0, 30); }
+    function populateRepoSelection() {
+        const container = document.getElementById('repo-selection-container');
+        const strategy = wizardState.groupingStrategy;
+        const filteredRepos = getFilteredRepos();
+        const groups = {};
+        
+        if (!strategy) {
+            groups['All discovered repositories'] = filteredRepos;
+        } else {
+            filteredRepos.forEach(([repoName, repoDetails]) => {
+                let groupKey;
+                if (strategy === 'teams') {
+                    groupKey = (repoDetails.owners || []).sort().join(', ') || 'No Team Assigned';
+                } else if (strategy === 'stages') {
+                    groupKey = (repoDetails.stages || []).sort().join(', ') || 'No Stage Assigned';
+                } else {
+                    const owners = (repoDetails.owners || []).sort().join(', ') || 'No Team';
+                    const stages = (repoDetails.stages || []).sort().join(', ') || 'No Stage';
+                    groupKey = `${owners} | ${stages}`;
+                }
+                if (!groups[groupKey]) groups[groupKey] = [];
+                groups[groupKey].push([repoName, repoDetails]);
+            });
+        }
+        
+        container.innerHTML = Object.entries(groups).map(([groupName, groupRepos]) => {
+            const suggestedProjectName = generateProjectName(groupName);
+            const selectedReposInGroup = groupRepos.filter(([repoName]) => selectedRepos.includes(repoName));
+            const hasSelectedRepos = selectedReposInGroup.length > 0;
+            
+            // Check if this project has been decided (has a custom name set)
+            const projectInput = document.querySelector(`input[data-group-key="${groupName}"]`);
+            const isProjectDecided = projectInput && projectInput.value !== suggestedProjectName;
+            
+            console.log(`Group: ${groupName}`);
+            console.log('  groupRepos:', groupRepos.map(([name]) => name));
+            console.log('  selectedRepos:', selectedRepos);
+            console.log('  selectedReposInGroup:', selectedReposInGroup.map(([name]) => name));
+            console.log('  hasSelectedRepos:', hasSelectedRepos);
+            console.log('  isProjectDecided:', isProjectDecided);
+            
+            
+            const groupTitle = !strategy ? 
+                `<div class="mb-2 flex items-center justify-between"><h4 class="font-semibold text-slate-700">${groupName}</h4>${hasSelectedRepos ? `<button onclick="startWizardForProject('${groupName}')" class="btn-primary px-4 py-2 rounded-md font-semibold text-sm">Integrate</button>` : ''}</div>` : 
+                `<div class="mb-2 flex items-center justify-between"><div class="flex items-center gap-4"><h4 class="font-semibold text-slate-800">Suggested Project:</h4><input type="text" data-group-key="${groupName}" value="${suggestedProjectName}" oninput="this.value = this.value.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 30)" onchange="populateRepoSelection()" class="text-green-700 font-bold bg-slate-100 px-2 py-1 rounded-md border border-slate-200 focus:ring-2 focus:ring-green-700 focus:outline-none text-sm"></div>${hasSelectedRepos ? `<button onclick="startWizardForProject('${groupName}')" class="btn-primary px-4 py-2 rounded-md font-semibold text-sm">Integrate</button>` : ''}</div>`;
+            
+            return `<div class="mb-4">${groupTitle}<div class="rounded-lg border border-slate-200 overflow-hidden"><table class="w-full text-sm text-left text-slate-500"><thead class="text-xs text-slate-700 uppercase bg-slate-100"><tr><th scope="col" class="p-4 w-12 text-center"><input type="checkbox" onchange="toggleGroupCheckboxes(this, '${groupName}')" class="h-4 w-4 rounded border-slate-300 text-green-700 focus:ring-green-700"></th><th scope="col" class="px-6 py-3">Repository Name</th><th scope="col" class="px-6 py-3">GH Stages</th><th scope="col" class="px-6 py-3">Owning Teams</th><th scope="col" class="px-6 py-3">JF Project</th></tr></thead><tbody ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" data-group-key="${groupName}">${groupRepos.map(([repoName, repoDetails]) => {
+                const jfProjectCell = wizardState.repositoryProjects && wizardState.repositoryProjects[repoName] ? 
+                    `<span class="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-medium">${wizardState.repositoryProjects[repoName]}</span>` :
+                    '<span class="text-slate-400">Not integrated</span>';
+                
+                return `<tr class="cursor-pointer" draggable="true" ondragstart="handleDragStart(event, '${repoName}')" data-repo-name="${repoName}" onclick="toggleRowSelection(event, this)"><td class="p-4 text-center text-slate-400"><input type="checkbox" name="repoSelection" data-group="${groupName}" value="${repoName}" onchange="updateSelectedRepos(this)" class="sr-only"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="4" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="9" cy="20" r="1.5"/><circle cx="15" cy="4" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="15" cy="20" r="1.5"/></svg></td><td class="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">${repoName}</td><td class="px-6 py-4"><div class="flex items-center flex-wrap gap-1">${(repoDetails.stages.length > 0 ? repoDetails.stages.map(s => `<span class="text-xs bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full font-medium">${s}</span>`).join('') : '<span class="text-slate-400">None</span>')}</div></td><td class="px-6 py-4"><div class="flex items-center flex-wrap gap-1">${repoDetails.owners.map(o => `<span class="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full">${o}</span>`).join('')}</div></td><td class="px-6 py-4">${jfProjectCell}</td></tr>`;
+            }).join('')}</tbody></table></div></div>`;
+        }).join('');
+    }
+    function populateStagesView() {
+        const container = document.getElementById('stages-view');
+        const projects = {};
+        
+        // If we're in a specific project group, create a project for it
+        if (wizardState.currentProjectGroup) {
+            const projectName = document.querySelector(`input[data-group-key="${wizardState.currentProjectGroup}"]`)?.value || generateProjectName(wizardState.currentProjectGroup);
+            projects[projectName] = { repos: selectedRepos };
+        } else {
+            // Otherwise, use existing projects from wizardState
+            for(const groupKey in wizardState.projects) {
+                const project = wizardState.projects[groupKey];
+                const projectRepos = project.repos.filter(r => selectedRepos.includes(r));
+                if (projectRepos.length > 0) projects[project.name] = { repos: projectRepos };
+            }
+        }
+        
+        container.innerHTML = Object.entries(projects).map(([projectName, projectData]) => {
+            let allStages = new Set();
+            projectData.repos.forEach(repoName => {
+                (discoveredRepos[repoName].stages || []).forEach(stage => allStages.add(stage));
+            });
+            let suggestion = [...allStages];
+            console.log('Initial stages from repos:', suggestion);
+            
+            if (!suggestion.includes('dev')) suggestion.push('dev');
+            console.log('After adding dev:', suggestion);
+            
+            // Production stage is mandatory and should always be the last stage
+            // Always ensure production is present
+            if (!suggestion.includes('production')) {
+                suggestion.push('production');
+                console.log('Added production stage:', suggestion);
+            }
+            
+            suggestion = sortStages(suggestion);
+            console.log('After sortStages:', suggestion);
+            
+            // Ensure production is always the last stage
+            const prodIndex = suggestion.indexOf('production');
+            if (prodIndex !== -1 && prodIndex !== suggestion.length - 1) {
+                suggestion.splice(prodIndex, 1);
+                suggestion.push('production');
+                console.log('Moved production to end:', suggestion);
+            }
+            
+            console.log('Final suggestion for', projectName, ':', suggestion);
+            wizardState.finalStages[projectName] = suggestion;
+            const projectId = projectName.replace(/[^a-zA-Z0-9]/g, '');
+            return `<div class="jfrog-card p-4"><h4 class="font-semibold text-slate-800 text-lg">${projectName}</h4><p class="text-sm text-slate-500 mb-4">Contains ${projectData.repos.length} repositories: ${projectData.repos.join(', ')}</p><div class="mt-4"><label class="block text-sm font-medium text-slate-700 mb-2">Suggested Stages (Drag to reorder):</label><div id="tags-container-${projectId}" class="flex items-center flex-wrap gap-2 p-2 rounded-lg border bg-slate-50 min-h-[44px]" ondragover="handleStageDragOver(event)" ondragleave="handleStageDragLeave(event)" ondrop="handleStageDrop(event, '${projectName}')">${suggestion.map(createStageTag).join('')}</div><div class="flex items-center gap-2 mt-3"><input type="text" id="add-stage-input-${projectId}" placeholder="Add stage..." class="block w-full sm:w-auto flex-grow px-3 py-1.5 bg-white border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-green-700 focus:border-green-700 sm:text-sm"><button onclick="addStageTag('${projectId}')" class="btn-secondary px-4 py-1.5 rounded-md text-sm font-semibold">Add</button></div></div></div>`;
+        }).join('');
+    }
+    function createStageTag(stage) { const isLocked = stage === 'dev' || stage === 'production'; return `<span class="stage-tag inline-flex items-center gap-x-1.5 py-1.5 px-3 rounded-full text-xs font-medium ${isLocked ? 'bg-green-100 text-green-800 cursor-default' : 'bg-sky-100 text-sky-800 cursor-grab'}" draggable="${!isLocked}" ondragstart="handleStageDragStart(event)">${isLocked ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" /></svg>` : ''}<span>${stage}</span>${isLocked ? '' : `<button onclick="removeStageTag(this)" class="flex-shrink-0 h-4 w-4 rounded-full inline-flex items-center justify-center text-sky-600 hover:bg-sky-200 hover:text-sky-800"><svg class="h-3 w-3" stroke="currentColor" fill="none" viewBox="0 0 8 8"><path stroke-linecap="round" stroke-width="1.5" d="M1 1l6 6m0-6L1 7" /></svg></button>`}</span>`; }
+    function addStageTag(projectId) { const i = document.getElementById(`add-stage-input-${projectId}`); const s = i.value.trim(); if (s && s !== 'dev' && s !== 'production') { const c = document.getElementById(`tags-container-${projectId}`); const t = createStageTag(s); const p = Array.from(c.querySelectorAll('.stage-tag')).find(tag => tag.innerText.includes('production')); if (p) p.insertAdjacentHTML('beforebegin', t); else c.insertAdjacentHTML('beforeend', t); i.value = ''; } }
+    function populateTechnologiesView() { const c = document.getElementById('technologies-view'); let techs = new Set(); selectedRepos.forEach(r => discoveredRepos[r].data.forEach(p => techs.add(p.type))); wizardState.finalTechnologies = [...techs]; const unselected = allTechnologies.filter(t => !techs.has(t)); c.innerHTML = `<div><label class="block text-sm font-medium text-slate-700 mb-2">Detected & Added Package Managers:</label><div id="tech-tags-container" class="flex items-center flex-wrap gap-2 p-2 rounded-lg border bg-slate-50 min-h-[44px]">${[...techs].map(t => createTechTag(t, true)).join('')}</div></div><div class="mt-4"><label for="add-tech-select" class="block text-sm font-medium text-slate-700">Add another package manager</label><div class="flex items-center gap-2 mt-1"><select id="add-tech-select" class="block w-full rounded-md border-slate-300 shadow-sm focus:border-green-700 focus:ring-green-700 sm:text-sm"><option disabled selected value="">Choose a type...</option>${unselected.map(t => `<option value="${t}">${t}</option>`).join('')}</select><button onclick="addTechnologyTag()" class="btn-secondary px-4 py-1.5 rounded-md text-sm font-semibold">Add</button></div></div>`; }
+    function createTechTag(tech, isDetected = false) { return `<span class="tech-tag inline-flex items-center gap-x-1.5 py-1.5 px-3 rounded-full text-xs font-medium ${isDetected ? 'bg-slate-200 text-slate-800' : 'bg-sky-100 text-sky-800'}">${icons[tech] || ''}<span>${tech}</span><button onclick="removeTechnologyTag(this, '${tech}')" class="flex-shrink-0 h-4 w-4 rounded-full inline-flex items-center justify-center text-slate-600 hover:bg-slate-300 hover:text-slate-800"><svg class="h-3 w-3" stroke="currentColor" fill="none" viewBox="0 0 8 8"><path stroke-linecap="round" stroke-width="1.5" d="M1 1l6 6m0-6L1 7" /></svg></button></span>`; }
+    function addTechnologyTag() { const s = document.getElementById('add-tech-select'); const t = s.value; if (t) { document.getElementById('tech-tags-container').insertAdjacentHTML('beforeend', createTechTag(t, false)); wizardState.finalTechnologies.push(t); s.querySelector(`option[value="${t}"]`).remove(); s.value = ''; } }
+    function removeTechnologyTag(button, tech) { button.parentElement.remove(); wizardState.finalTechnologies = wizardState.finalTechnologies.filter(t => t !== tech); const s = document.getElementById('add-tech-select'); if (!s.querySelector(`option[value="${tech}"]`)) s.insertAdjacentHTML('beforeend', `<option value="${tech}">${tech}</option>`); }
+    function populateSummaryView() { const container = document.getElementById('summary-view'); const projects = {}; for(const groupKey in wizardState.projects) { const project = wizardState.projects[groupKey]; const projectRepos = project.repos.filter(r => selectedRepos.includes(r)); if (projectRepos.length > 0) projects[project.name] = { repos: projectRepos, groupKey: groupKey }; } const allProjectNames = Object.values(wizardState.projects).map(p => p.name); container.innerHTML = Object.entries(projects).map(([projectName, projectData], index) => { const projectKey = projectName.replace('Project-', '').split('-').map(w => w.substring(0,2)).join('').toUpperCase(); const sortedStages = wizardState.finalStages[projectName] || []; const otherProjects = allProjectNames.filter(name => name !== projectName); return `<div class="jfrog-card"><div class="p-6"><h4 class="font-semibold text-slate-800 text-lg">${projectName}</h4><p class="text-sm text-slate-500">Contains ${projectData.repos.length} repositories: ${projectData.repos.join(', ')}</p></div><div class="border-t border-slate-200"><div class="px-6 py-3 bg-slate-50/50"><h4 class="text-sm font-semibold text-slate-700">Suggested Artifactory Repository Structure</h4></div><div class="border-t border-slate-200"><div class="border-b border-slate-200"><nav class="-mb-px flex gap-x-6 px-6">${sortedStages.length > 0 ? sortedStages.map((stage, stageIdx) => `<button onclick="switchTab('p${index}', '${stage}')" class="tab-button p${index} ${stageIdx === 0 ? 'active' : ''} shrink-0 border-b-2 border-transparent px-1 py-3 text-sm text-slate-500 hover:border-slate-300 hover:text-slate-700">${stage}</button>`).join('') : `<button class="tab-button p${index} active shrink-0 border-b-2 border-transparent px-1 py-3 text-sm text-slate-500">Generic (No Stage)</button>`}</nav></div><div class="p-4">${sortedStages.map((stage, stageIdx) => { let repoListHtml = ''; wizardState.finalTechnologies.forEach(tech => { const techLower = tech.toLowerCase(); const maturity = getMaturity(stage); if (stage === 'dev') { repoListHtml += `<li class="py-3 flex items-start gap-4"><div class="flex items-center gap-2 w-24 flex-shrink-0 pt-1.5">${icons[tech] || ''}<span class="font-medium text-sm text-slate-800">${tech}</span></div><div class="flex-grow grid grid-cols-1 sm:grid-cols-3 gap-2"><div class="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1 rounded-md text-xs"><span class="font-mono truncate" title="${projectKey}-${techLower}-${maturity}-virtual">${projectKey}-${techLower}-${maturity}-virtual</span><span class="font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">virtual</span></div><div class="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1 rounded-md text-xs"><span class="font-mono truncate" title="${projectKey}-${techLower}-remote">${projectKey}-${techLower}-remote</span><span class="font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800">remote</span></div><div class="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1 rounded-md text-xs"><span class="font-mono truncate" title="${projectKey}-${techLower}-dev-local">${projectKey}-${techLower}-${maturity}-local</span><span class="font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">local</span></div></div></li>`; } else { repoListHtml += `<li class="py-2 flex items-center gap-4"><div class="flex items-center gap-2 w-24 flex-shrink-0">${icons[tech] || ''}<span class="font-medium text-sm text-slate-800">${tech}</span></div><div class="flex-grow text-sm text-slate-600 bg-slate-100 px-3 py-1 rounded-md font-mono">${projectKey}-${techLower}-${maturity}-local</div><div class="w-20 text-right"><span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">local</span></div></li>`; } }); let sharingHtml = ''; if (stage === 'production') { sharingHtml = `<div class="mt-4 pt-4 border-t border-slate-200"><h5 class="text-sm font-semibold text-slate-700 mb-3">Share Production Repositories</h5><div class="flex items-center gap-6"><label class="flex items-center text-sm"><input type="radio" name="sharing-${index}" value="all" onchange="toggleProjectSelection(${index})" checked class="h-4 w-4 border-slate-300 text-green-700 focus:ring-green-700"><span class="ml-2 text-slate-700">All Projects</span></label><label class="flex items-center text-sm"><input type="radio" name="sharing-${index}" value="specific" onchange="toggleProjectSelection(${index})" class="h-4 w-4 border-slate-300 text-green-700 focus:ring-green-700"><span class="ml-2 text-slate-700">Specific Projects</span></label><label class="flex items-center text-sm"><input type="radio" name="sharing-${index}" value="none" onchange="toggleProjectSelection(${index})" class="h-4 w-4 border-slate-300 text-green-700 focus:ring-green-700"><span class="ml-2 text-slate-700">None</span></label></div><div id="project-selection-${index}" class="hidden mt-3"><select multiple class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-green-700 focus:ring-green-700 sm:text-sm">${otherProjects.map(p => `<option>${p}</option>`).join('')}</select></div></div>`; } return `<div id="tab-p${index}-${stage}" class="tab-content p${index} ${stageIdx === 0 ? 'active' : ''}"><ul class="divide-y divide-slate-100">${repoListHtml}</ul>${sharingHtml}</div>`; }).join('')}</div></div></div></div>`; }).join(''); }
+    
+    // --- Event Handlers & Helpers ---
+    function toggleGroupCheckboxes(masterCheckbox, groupName){ 
+        document.querySelectorAll(`input[data-group="${groupName}"]`).forEach(c => { 
+            if(c.checked !== masterCheckbox.checked) {
+                c.checked = masterCheckbox.checked;
+                c.closest('tr').classList.toggle('selected-row', masterCheckbox.checked);
+                updateSelectedRepos(c);
+            }
+        }); 
+        
+        // Refresh the entire view to update the integrate button visibility
+        populateRepoSelection();
+    }
+    function toggleRowSelection(event, row){ 
+        if (event.target.closest('svg') || event.target.tagName === 'INPUT') return;
+        const c = row.querySelector('input[name="repoSelection"]'); 
+        if(c) { 
+            c.checked = !c.checked; 
+            c.closest('tr').classList.toggle('selected-row', c.checked);
+            updateSelectedRepos(c);
+        } 
+    }
+    function handleDragStart(event, repoName){ event.dataTransfer.setData('text/plain', repoName); setTimeout(() => event.target.classList.add('dragging'), 0); }
+    function handleDragOver(event){ event.preventDefault(); const t = event.target.closest('tbody'); if(t) t.classList.add('drop-target'); }
+    function handleDragLeave(event){ const t = event.target.closest('tbody'); if(t) t.classList.remove('drop-target'); }
+    function handleDrop(event){ 
+        event.preventDefault(); 
+        const t = event.target.closest('tbody'); 
+        if(!t) return; 
+        t.classList.remove('drop-target'); 
+        const repoName = event.dataTransfer.getData('text/plain'); 
+        const targetGroupKey = t.dataset.groupKey; 
+        document.querySelector('.dragging')?.classList.remove('dragging'); 
+        const s = wizardState.groupingStrategy; 
+        
+        // Update repository metadata based on grouping strategy
+        if (s==='teams') {
+            discoveredRepos[repoName].owners = targetGroupKey.split(', '); 
+        } else if (s==='stages') {
+            discoveredRepos[repoName].stages = targetGroupKey.split(', '); 
+        } else if (s==='teams_and_stages') { 
+            const [teams, stages] = targetGroupKey.split(' | '); 
+            discoveredRepos[repoName].owners = teams.split(', '); 
+            discoveredRepos[repoName].stages = stages.split(', '); 
+        } 
+        
+        // Preserve current selections and add the dragged repo to selected repos if it wasn't already
+        const sel = selectedRepos; 
+        if (!sel.includes(repoName)) {
+            sel.push(repoName);
+        }
+        
+        populateRepoSelection(); 
+        reapplySelections(sel); 
+        updateSelectedRepos(); 
+    }
+    function reapplySelections(selected){ 
+        selected.forEach(name => { 
+            const c = document.querySelector(`input[name="repoSelection"][value="${name}"]`); 
+            if(c){ 
+                c.checked=true; 
+                c.closest('tr').classList.add('selected-row'); 
+            } 
+        }); 
+    }
+    function handleStageDragStart(event){ event.dataTransfer.setData('text/plain', event.target.querySelector('span').innerText); event.target.classList.add('dragging'); }
+    function handleStageDragOver(event){ event.preventDefault(); const c = event.target.closest('[id^="tags-container-"]'); if(c) c.classList.add('drop-target'); }
+    function handleStageDragLeave(event){ const c = event.target.closest('[id^="tags-container-"]'); if(c) c.classList.remove('drop-target'); }
+    function handleStageDrop(event){ event.preventDefault(); const c = event.target.closest('[id^="tags-container-"]'); if(c) c.classList.remove('drop-target'); const d = document.querySelector('.stage-tag.dragging'); if(d) d.classList.remove('dragging'); const a = getDragAfterElement(c, event.clientX); if(a==null) c.appendChild(d); else c.insertBefore(d, a); }
+    function getDragAfterElement(container, x){ const draggables = [...container.querySelectorAll('.stage-tag[draggable="true"]:not(.dragging)')]; return draggables.reduce((closest, child) => { const box = child.getBoundingClientRect(); const offset = x - box.left - box.width / 2; if (offset < 0 && offset > closest.offset) return { offset: offset, element: child }; else return closest; }, { offset: Number.NEGATIVE_INFINITY }).element; }
+    function removeStageTag(button){ 
+        const stageText = button.parentElement.querySelector('span').innerText;
+        // Prevent removal of mandatory stages
+        if (stageText === 'dev' || stageText === 'production') {
+            return;
+        }
+        button.parentElement.remove(); 
+    }
+    function sortStages(stages) { 
+        console.log('sortStages input:', stages);
+        const order = ['dev', 'beta', 'staging', 'qa', 'performance', 'production', 'release']; 
+        const uniqueStages = [...new Set(stages)]; 
+        const dev = uniqueStages.filter(s => s === 'dev'); 
+        const prod = uniqueStages.filter(s => s === 'production' || s === 'release'); 
+        const others = uniqueStages.filter(s => s !== 'dev' && s !== 'production' && s !== 'release'); 
+        others.sort((a,b) => { const iA=order.indexOf(a), iB=order.indexOf(b); if(iA>-1&&iB>-1)return iA-iB; if(iA>-1)return -1; if(iB>-1)return 1; return a.localeCompare(b); }); 
+        const result = [...dev, ...others, ...prod];
+        console.log('sortStages output:', result);
+        return result;
+    }
+    function getMaturity(stage) { const map = { 'production': 'prod', 'staging': 'stg', 'release': 'rel', 'beta': 'beta', 'dev': 'dev' }; return map[stage] || stage.substring(0, 4); }
+    function switchTab(p, s) { document.querySelectorAll(`.tab-content.${p}`).forEach(e => e.classList.remove('active')); document.querySelectorAll(`.tab-button.${p}`).forEach(e => e.classList.remove('active')); document.getElementById(`tab-${p}-${s}`).classList.add('active'); event.currentTarget.classList.add('active'); }
+    function toggleProjectSelection(index) { 
+        const s = document.getElementById(`project-selection-${index}`); 
+        const r = document.querySelector(`input[name="sharing-${index}"][value="specific"]`); 
+        if (s && r) {
+            s.classList.toggle('hidden', !r.checked); 
+        }
+    }
+    function goToStep(stepId){ 
+        document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active')); 
+        document.getElementById(`step-${stepId}`).classList.add('active'); 
+        currentStepIndex = stepsOrder.indexOf(stepId); 
+        updateNavigationButtons(); 
+        updateProgressDots();
+    }
+
+    function populateJFProjectsView() {
+        const container = document.getElementById('jf-projects-view');
+        
+        // Get the current project information
+        let projectName, projectRepos;
+        if (wizardState.currentProjectGroup) {
+            projectName = document.querySelector(`input[data-group-key="${wizardState.currentProjectGroup}"]`)?.value || generateProjectName(wizardState.currentProjectGroup);
+            projectRepos = selectedRepos;
+        } else {
+            // Fallback to first project if no current group
+            const firstProject = Object.values(wizardState.projects)[0];
+            if (firstProject) {
+                projectName = firstProject.name;
+                projectRepos = firstProject.repos;
+            } else {
+                container.innerHTML = `<div class="jfrog-card p-6 text-center text-slate-500">No project data available.</div>`;
+                return;
+            }
+        }
+        
+        const sortedStages = wizardState.finalStages[projectName] || ['dev', 'production'];
+        const technologies = wizardState.finalTechnologies || ['Npm', 'Docker'];
+        const projectKey = projectName.replace('Project-', '').split('-').map(w => w.substring(0,2)).join('').toUpperCase();
+        
+        container.innerHTML = `
+            <div class="jfrog-card">
+                <div class="p-6">
+                    <h4 class="font-semibold text-slate-800 text-lg">${projectName}</h4>
+                    <p class="text-sm text-slate-500">Contains ${projectRepos.length} repositories: ${projectRepos.join(', ')}</p>
+                            </div>
+                <div class="border-t border-slate-200">
+                    <div class="px-6 py-3 bg-slate-50/50">
+                        <h4 class="text-sm font-semibold text-slate-700">Suggested Artifactory Repository Structure</h4>
+                            </div>
+                    <div class="border-t border-slate-200">
+                        <div class="border-b border-slate-200">
+                            <nav class="-mb-px flex gap-x-6 px-6">
+                                ${sortedStages.length > 0 ? sortedStages.map((stage, stageIdx) => `
+                                    <button onclick="switchTab('jf', '${stage}')" class="tab-button jf ${stageIdx === 0 ? 'active' : ''} shrink-0 border-b-2 border-transparent px-1 py-3 text-sm text-slate-500 hover:border-slate-300 hover:text-slate-700">
+                                        ${stage}
+                                    </button>
+                                `).join('') : `
+                                    <button class="tab-button jf active shrink-0 border-b-2 border-transparent px-1 py-3 text-sm text-slate-500">
+                                        Generic (No Stage)
+                                    </button>
+                                `}
+                            </nav>
+                            </div>
+                        <div class="p-4">
+                            ${sortedStages.map((stage, stageIdx) => {
+                                let repoListHtml = '';
+                                technologies.forEach(tech => {
+                                    const techLower = tech.toLowerCase();
+                                    const maturity = getMaturity(stage);
+                                    
+                                    if (stage === 'dev') {
+                                        // Dev stage: virtual, remote, and local repositories
+                                        repoListHtml += `
+                                            <li class="py-3 flex items-start gap-4">
+                                                <div class="flex items-center gap-2 w-24 flex-shrink-0 pt-1.5">
+                                                    ${icons[tech] || ''}
+                                                    <span class="font-medium text-sm text-slate-800">${tech}</span>
+                        </div>
+                                                <div class="flex-grow grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                                    <div class="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1 rounded-md text-xs">
+                                                        <span class="font-mono truncate" title="${projectKey}-${techLower}-${maturity}-virtual">${projectKey}-${techLower}-${maturity}-virtual</span>
+                                                        <span class="font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">virtual</span>
+                    </div>
+                                                    <div class="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1 rounded-md text-xs">
+                                                        <span class="font-mono truncate" title="${projectKey}-${techLower}-remote">${projectKey}-${techLower}-remote</span>
+                                                        <span class="font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800">remote</span>
+                        </div>
+                                                    <div class="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1 rounded-md text-xs">
+                                                        <span class="font-mono truncate" title="${projectKey}-${techLower}-${maturity}-local">${projectKey}-${techLower}-${maturity}-local</span>
+                                                        <span class="font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">local</span>
+                    </div>
+                        </div>
+                                            </li>
+                                        `;
+                                    } else {
+                                        // Other stages: only local repositories
+                                        repoListHtml += `
+                                            <li class="py-2 flex items-center gap-4">
+                                                <div class="flex items-center gap-2 w-24 flex-shrink-0">
+                                                    ${icons[tech] || ''}
+                                                    <span class="font-medium text-sm text-slate-800">${tech}</span>
+                    </div>
+                                                <div class="flex-grow text-sm text-slate-600 bg-slate-100 px-3 py-1 rounded-md font-mono">
+                                                    ${projectKey}-${techLower}-${maturity}-local
+                        </div>
+                                                <div class="w-20 text-right">
+                                                    <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">local</span>
+                    </div>
+                                            </li>
+                                        `;
+                                    }
+                                });
+                                
+                                let sharingHtml = '';
+                                if (stage === 'production') {
+                                    // Production stage: sharing strategy selection
+                                    sharingHtml = `
+                                        <div class="mt-4 pt-4 border-t border-slate-200">
+                                            <h5 class="text-sm font-semibold text-slate-700 mb-3">Share Production Repositories</h5>
+                                            <div class="flex items-center gap-6">
+                                                <label class="flex items-center text-sm">
+                                                    <input type="radio" name="sharing-jf" value="all" onchange="toggleProjectSelection('jf')" checked class="h-4 w-4 border-slate-300 text-green-700 focus:ring-green-700">
+                                                    <span class="ml-2 text-slate-700">All Projects</span>
+                                                </label>
+                                                <label class="flex items-center text-sm">
+                                                    <input type="radio" name="sharing-jf" value="specific" onchange="toggleProjectSelection('jf')" class="h-4 w-4 border-slate-300 text-green-700 focus:ring-green-700">
+                                                    <span class="ml-2 text-slate-700">Specific Projects</span>
+                                                </label>
+                                                <label class="flex items-center text-sm">
+                                                    <input type="radio" name="sharing-jf" value="none" onchange="toggleProjectSelection('jf')" class="h-4 w-4 border-slate-300 text-green-700 focus:ring-green-700">
+                                                    <span class="ml-2 text-slate-700">None</span>
+                                                </label>
+                                    </div>
+                                            <div id="project-selection-jf" class="hidden mt-3">
+                                                <select multiple class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-green-700 focus:ring-green-700 sm:text-sm">
+                                                    <option>Other Project 1</option>
+                                                    <option>Other Project 2</option>
+                                                </select>
+                            </div>
+                        </div>
+                                    `;
+                                }
+                                
+                                return `
+                                    <div id="tab-jf-${stage}" class="tab-content jf ${stageIdx === 0 ? 'active' : ''}">
+                                        <ul class="divide-y divide-slate-100">
+                                            ${repoListHtml}
+                                        </ul>
+                                        ${sharingHtml}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    function goNext(){ 
+        const step = stepsOrder[currentStepIndex]; 
+        if(step === 'Stages') { 
+            saveFinalStages(); 
+            populateTechnologiesView(); 
+        } 
+        if(step === 'Technologies') { 
+            saveFinalTechnologies(); 
+            populateJFProjectsView(); 
+        } 
+        if(step === 'JF Projects') { 
+            populateWorkflowsView(); 
+        } 
+        if(step === 'Workflows Integration') {
+            // Wizard completed - track integrated repositories
+            completeWizard();
+            return;
+        } 
+        if (currentStepIndex < stepsOrder.length - 1) {
+            goToStep(stepsOrder[currentStepIndex + 1]); 
+        }
+    }
+    function goBack(){ 
+        if(currentStepIndex > 0) {
+            goToStep(stepsOrder[currentStepIndex - 1]); 
+        }
+    }
+    
+    function completeWizard() {
+        // Get the current project information
+        let projectName = '';
+        if (wizardState.currentProjectGroup) {
+            projectName = document.querySelector(`input[data-group-key="${wizardState.currentProjectGroup}"]`)?.value || generateProjectName(wizardState.currentProjectGroup);
+        }
+        
+        // Initialize integrated repositories tracking if it doesn't exist
+        if (!wizardState.integratedRepositories) {
+            wizardState.integratedRepositories = new Set();
+        }
+        
+        // Initialize project assignments if it doesn't exist
+        if (!wizardState.repositoryProjects) {
+            wizardState.repositoryProjects = {};
+        }
+        
+        // Store the count before clearing selectedRepos
+        const integratedRepoCount = selectedRepos.length;
+        
+        // Mark all selected repositories as integrated and assign them to the project
+        selectedRepos.forEach(repoName => {
+            wizardState.integratedRepositories.add(repoName);
+            wizardState.repositoryProjects[repoName] = projectName;
+        });
+        
+        // Store the project information
+        if (!wizardState.projects) {
+            wizardState.projects = {};
+        }
+        wizardState.projects[projectName] = { 
+            name: projectName, 
+            repos: [...selectedRepos], // Create a copy before clearing
+            stages: wizardState.finalStages[projectName] || ['dev', 'production'],
+            technologies: wizardState.finalTechnologies || ['Npm', 'Docker']
+        };
+        
+        // Return to the main repository view
+        document.getElementById('wizard-view').classList.add('hidden');
+        document.getElementById('initial-repo-view').style.display = 'block';
+        
+        // Reset wizard state
+        wizardState.currentProjectGroup = null;
+        wizardState.groupingStrategy = null;
+        selectedRepos = [];
+        document.querySelectorAll('input[name="grouping"]').forEach(cb => cb.checked = false);
+        
+        // Refresh the repository view to show the updated JF Project column
+        populateRepoSelection();
+        updateRepoCounts();
+        
+        alert(`Wizard completed successfully! Project "${projectName}" has been created and integrated with ${integratedRepoCount} repositories.`);
+    }
+    function resetWizard(){ location.reload(); }
+    function updateSelectedRepos(checkbox) {
+        console.log('updateSelectedRepos called with checkbox:', checkbox);
+        if(checkbox) {
+            console.log('Checkbox checked state:', checkbox.checked);
+            checkbox.closest('tr').classList.toggle('selected-row', checkbox.checked);
+        }
+        
+        const allCheckboxes = document.querySelectorAll('input[name="repoSelection"]');
+        const checkedCheckboxes = document.querySelectorAll('input[name="repoSelection"]:checked');
+        console.log('All checkboxes found:', allCheckboxes.length);
+        console.log('Checked checkboxes found:', checkedCheckboxes.length);
+        
+        selectedRepos = Array.from(checkedCheckboxes).map(c => c.value);
+        console.log('updateSelectedRepos - selectedRepos:', selectedRepos);
+        document.getElementById('next-btn').disabled = selectedRepos.length === 0;
+        
+        // Update the repository selection display to show/hide integrate buttons
+        populateRepoSelection();
+    }
+
+    function updateProgressDots() {
+        const dots = document.querySelectorAll('.progress-dot');
+        dots.forEach((dot, index) => {
+            dot.classList.toggle('bg-green-500', index <= currentStepIndex);
+            dot.classList.toggle('bg-gray-300', index > currentStepIndex);
+        });
+    }
+    function saveProjectNames(){ wizardState.projects = {}; document.querySelectorAll('#repo-selection-container input[type=text]').forEach(i => { const key=i.dataset.groupKey; const repos = Array.from(document.querySelectorAll(`input[data-group="${key}"][name=repoSelection]`)).map(c=>c.value); wizardState.projects[key] = {name: i.value, repos: repos}; }); if (!wizardState.groupingStrategy) wizardState.projects['All discovered repositories'] = {name: 'Project-All-Repos', repos: repoNames}; }
+    function saveFinalStages(){ document.querySelectorAll('#stages-view [id^="tags-container-"]').forEach(c => { const pId = c.id.replace('tags-container-', ''); const card = document.getElementById(`add-stage-input-${pId}`).closest('.jfrog-card'); if(card) { const pName = card.querySelector('h4').innerText; const stages = Array.from(c.querySelectorAll('.stage-tag > span')).map(s => s.innerText); wizardState.finalStages[pName] = stages; } }); }
+    function saveFinalTechnologies(){ const c = document.getElementById('tech-tags-container'); if(c) wizardState.finalTechnologies = Array.from(c.querySelectorAll('.tech-tag > span')).map(s => s.innerText); }
+    function updateNavigationButtons(){ 
+        const step = stepsOrder[currentStepIndex]; 
+        document.getElementById('back-btn').style.display = currentStepIndex>0 && step !== 'Complete' ? 'block' : 'none'; 
+        document.getElementById('next-btn').disabled = false; 
+        document.getElementById('next-btn').innerText = step === 'Workflows Integration' ? 'Finish' : 'Next'; 
+        document.getElementById('next-btn').style.display = step === 'Complete' ? 'none' : 'block';
+    }
+    function populateWorkflowsView() {
+        const container = document.getElementById('workflows-view');
+        
+        // 1. DETECTION: Scan through all selected repositories for workflows
+        const workflowsByRepo = {};
+        selectedRepos.forEach(repoName => {
+            const repoDetails = discoveredRepos[repoName];
+            if (repoDetails.workflows && repoDetails.workflows.length > 0) {
+                workflowsByRepo[repoName] = repoDetails.workflows;
+            }
+        });
+        
+        // Store detected workflows in wizard state
+        wizardState.workflowsByRepo = workflowsByRepo;
+        
+        // 2. PRESENTATION: Build clean, simple UI with workflows per repository
+        const totalWorkflows = Object.values(workflowsByRepo).flat().length;
+        
+        container.innerHTML = `
+            <div class="jfrog-card p-6">
+                <h4 class="font-semibold text-slate-800 text-lg mb-4">Workflows Integration</h4>
+                <p class="text-sm text-slate-500 mb-6">Add JFrog CLI integration to your GitHub Actions workflows.</p>
+                
+                <div class="space-y-6">
+                    <!-- Summary -->
+                    <div class="bg-slate-50 p-4 rounded-lg">
+                        <h5 class="font-medium text-slate-700 mb-2">Detected Workflows</h5>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span class="text-slate-500">Repositories with workflows:</span>
+                                <span class="font-medium text-slate-800 ml-2">${Object.keys(workflowsByRepo).length}</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-500">Total workflows found:</span>
+                                <span class="font-medium text-slate-800 ml-2">${totalWorkflows}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Workflows by Repository -->
+                    ${Object.keys(workflowsByRepo).length > 0 ? `
+                        <div class="space-y-6">
+                            ${Object.entries(workflowsByRepo).map(([repoName, workflows]) => `
+                                <div class="border border-slate-200 rounded-lg p-4">
+                                    <h5 class="font-medium text-slate-800 mb-4 flex items-center gap-2">
+                                        <svg class="h-5 w-5 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                                        </svg>
+                                        ${repoName}
+                                    </h5>
+                                    <div class="space-y-4">
+                                        ${workflows.map(workflow => `
+                                            <div class="bg-slate-50 rounded-lg p-4">
+                                                <div class="flex items-start justify-between mb-3">
+                                                    <div>
+                                                        <h6 class="font-medium text-slate-800">${workflow}</h6>
+                                                        <p class="text-xs text-slate-500 mt-1">Repository: ${repoName}</p>
+                                                    </div>
+                                                    <button onclick="previewWorkflowSnippet('${repoName}', '${workflow}')" class="btn-secondary px-3 py-1.5 rounded-md text-sm font-semibold">
+                                                        Preview
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : `
+                        <div class="border border-slate-200 rounded-lg p-6 text-center text-slate-500">
+                            <svg class="h-12 w-12 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <p class="font-medium">No GitHub Actions workflows found</p>
+                            <p class="text-sm mt-1">No .github/workflows/ files were detected in the selected repositories.</p>
+                        </div>
+                    `}
+                </div>
+            </div>
+        `;
+    }
+    
+    // Function to generate JFrog integration snippet
+    function generateJFrogIntegrationSnippet(repoName) {
+        // Get project information for this repository
+        let projectName = '';
+        let projectKey = '';
+        
+        // Find the project this repository belongs to
+        for (const [groupKey, projectData] of Object.entries(wizardState.projects || {})) {
+            if (projectData.repos && projectData.repos.includes(repoName)) {
+                projectName = projectData.name;
+                break;
+            }
+        }
+        
+        // If not found in projects, use current project group
+        if (!projectName && wizardState.currentProjectGroup) {
+            projectName = document.querySelector(`input[data-group-key="${wizardState.currentProjectGroup}"]`)?.value || generateProjectName(wizardState.currentProjectGroup);
+        }
+        
+        // Generate project key (e.g., "Project-Team-Apex" becomes "PTAP")
+        if (projectName) {
+            projectKey = projectName.replace('Project-', '').split('-').map(w => w.substring(0,2)).join('').toUpperCase();
+        }
+        
+        // Get technologies for this project
+        const technologies = wizardState.finalTechnologies || ['Npm', 'Docker'];
+        
+        // Generate simple JFrog CLI integration snippet for dev stage virtual repository
+        let snippet = `# Add JFrog CLI setup
+- name: Setup JFrog CLI
+  uses: jfrog/setup-jfrog-cli@v2
+  with:
+    version: latest
+
+# Configure JFrog CLI
+- name: Configure JFrog CLI
+  run: |
+    jf c add --interactive=false --url=\\$\\{\\{ secrets.JFROG_URL \\}\\} --user=\\$\\{\\{ secrets.JFROG_USER \\}\\} --password=\\$\\{\\{ secrets.JFROG_TOKEN \\}\\}
+    
+    # Configure dev stage virtual repository for dependencies`;
+
+        // Add repository configuration
+        technologies.forEach(tech => {
+            const techLower = tech.toLowerCase();
+            snippet += `\n    jf rt use ${projectKey}-${techLower}-dev-virtual`;
+        });
+
+        snippet += `\n\n# Download dependencies and upload build outputs
+- name: Build with JFrog
+  run: |
+    # Download dependencies from virtual repository`;
+
+        // Add download commands
+        technologies.forEach(tech => {
+            const techLower = tech.toLowerCase();
+            snippet += `\n    jf rt download ${projectKey}-${techLower}-dev-virtual/ --flat=false`;
+        });
+
+        snippet += `\n    
+    # Your build commands here
+    # npm install && npm run build
+    
+    # Upload build outputs to dev local repository`;
+
+        // Add upload commands
+        technologies.forEach(tech => {
+            const techLower = tech.toLowerCase();
+            snippet += `\n    jf rt upload "dist/*" ${projectKey}-${techLower}-dev-local/`;
+        });
+
+        return snippet;
+    }
+    
+    // Function to preview workflow snippet in a modal
+    function previewWorkflowSnippet(repoName, workflowName) {
+        const snippet = generateJFrogIntegrationSnippet(repoName);
+        
+        // Create modal HTML
+        const modalHTML = `
+            <div id="workflow-preview-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="closeWorkflowPreviewModal(event)">
+                <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden" onclick="event.stopPropagation()">
+                    <div class="flex items-center justify-between p-6 border-b border-slate-200">
+                        <div>
+                            <h3 class="text-lg font-semibold text-slate-800">Workflow Integration Preview</h3>
+                            <p class="text-sm text-slate-500 mt-1">${workflowName} in ${repoName}</p>
+                        </div>
+                        <button onclick="closeWorkflowPreviewModal()" class="text-slate-400 hover:text-slate-600">
+                            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                        <div class="mb-4">
+                            <h4 class="font-medium text-slate-700 mb-2">Add this code to your workflow:</h4>
+                            <p class="text-sm text-slate-500">Copy and paste the following YAML snippet into your ${workflowName} workflow file.</p>
+                        </div>
+                        <div class="bg-slate-900 rounded-lg p-4 overflow-x-auto">
+                            <pre class="text-green-400 text-sm font-mono whitespace-pre-wrap">${snippet}</pre>
+                        </div>
+                        <div class="mt-4 flex justify-end gap-3">
+                            <button onclick="copyWorkflowSnippet()" class="btn-secondary px-4 py-2 rounded-md text-sm font-semibold">
+                                Copy to Clipboard
+                            </button>
+                            <button onclick="closeWorkflowPreviewModal()" class="btn-primary px-4 py-2 rounded-md text-sm font-semibold">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to page
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Store snippet for copying
+        window.currentWorkflowSnippet = snippet;
+    }
+    
+    // Function to close workflow preview modal
+    function closeWorkflowPreviewModal(event) {
+        if (event && event.target !== event.currentTarget) return;
+        const modal = document.getElementById('workflow-preview-modal');
+        if (modal) {
+            modal.remove();
+        }
+    }
+    
+    // Function to copy workflow snippet to clipboard
+    function copyWorkflowSnippet() {
+        if (window.currentWorkflowSnippet) {
+            navigator.clipboard.writeText(window.currentWorkflowSnippet).then(() => {
+                // Show success feedback
+                const button = event.target;
+                const originalText = button.innerText;
+                button.innerText = 'Copied!';
+                button.classList.add('bg-green-600', 'text-white');
+                button.classList.remove('btn-secondary');
+                
+                setTimeout(() => {
+                    button.innerText = originalText;
+                    button.classList.remove('bg-green-600', 'text-white');
+                    button.classList.add('btn-secondary');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy to clipboard');
+            });
+        }
+    }
+    
+    
+    document.addEventListener('DOMContentLoaded', initializeWizard);
+</script>
+
+</body>
+</html>
